@@ -14,18 +14,52 @@ Same idea as ImageJ's *Segmented Line* with a width, or Label Studio's brush:
 **one gesture, one annotation.** No "click to start, click again to stop"
 dance.
 
+Built for **high-resolution** imagery, where browser-based labellers struggle —
+see [Why](#why).
+
 ---
 
 ## Why
 
-Outlining long thin objects with ISAT's built-in polygon tool is tedious: either
-you click a dozen times per segment trying to trace both edges, or you accept a
+### The problem: labelling high-resolution imagery in a browser
+
+Label Studio renders images **inside the local browser**. That works well for
+ordinary photographs, but it becomes the bottleneck on high-resolution imagery:
+
+* the image is decoded and held in browser memory, alongside a canvas copy of
+  it, so the footprint grows with the pixel count;
+* road, remote-sensing and similar measurement work **needs** a high spatial
+  resolution — the features being traced are only a few pixels wide, so
+  downscaling the image is not an option;
+* the practical result is heavy memory use, slow image loading, and a viewer
+  that stutters while panning, zooming or drawing.
+
+In other words, the tool gets slow exactly in the workflow that depends on it.
+This is a property of client-side browser rendering, not a criticism of any
+particular product — it is simply the wrong container for very large rasters.
+
+### The fix: annotate in a native application
+
+ISAT is a **native desktop application** (PyQt5), not a web page, so it is not
+bound by a browser tab's memory or canvas limits, and the same high-resolution
+files stay workable. This plugin exists because that is the situation we were
+in: road and remote-sensing annotation at high resolution, where a
+browser-based labeller stalled — so we built the tool we needed for ISAT
+instead of fighting the tool.
+
+### And why a *line* tool specifically
+
+Outlining long thin objects with a plain polygon tool is tedious: either you
+click a dozen times per segment trying to trace both edges, or you accept a
 ragged, too-thin sliver. With this tool you trace the object **once** — down the
 middle — and the width is handled for you. Change the width with a spinbox or
 two keys, and it stays where you left it.
 
-Typical uses: microscopy fibres / membranes / vessels, aerial and remote-sensing
-roads and rivers, cracks, tubing, plumes, handwriting strokes.
+That matters most for exactly the features that high-resolution imagery is
+needed to resolve: a road a few pixels across, a crack, a vessel, a fibre.
+
+Typical uses: remote-sensing and aerial roads, rivers and pipelines, microscopy
+fibres / membranes / vessels, cracks, tubing, plumes, handwriting strokes.
 
 ---
 
