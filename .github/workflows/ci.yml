@@ -1,0 +1,58 @@
+# Cheap guards for a plugin repo: catch the mistakes that would otherwise only
+# show up as "failed to load plugin" in somebody else's ISAT.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: line tool
+            dir: .
+            module: isat_plugin_line_tool
+          - name: eraser
+            dir: isat_plugin_eraser
+            module: isat_plugin_eraser
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]" || pip install -e .
+          pip install flake8
+
+      - name: Syntax check
+        run: python -m compileall -q ${{ matrix.module }}
+
+      - name: Lint
+        run: flake8 ${{ matrix.module }} setup.py --max-line-length=100
+
+      - name: Import without ISAT present
+        # ISAT is not on PyPI, so the plugin cannot be imported here. This
+        # proves the failure is a clean ImportError naming ISAT, rather than a
+        # syntax error or a bad import order that would also break real use.
+        run: |
+          python - <<'PY'
+          import importlib
+          try:
+              importlib.import_module("${{ matrix.module }}.plugin")
+          except ImportError as e:
+              assert "ISAT" in str(e), "unexpected ImportError: %s" % e
+              print("ok: clean ImportError naming ISAT ->", e)
+          else:
+              raise SystemExit("plugin imported without ISAT; it must not")
+          PY

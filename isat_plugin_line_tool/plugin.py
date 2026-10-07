@@ -193,6 +193,10 @@ class LineToolPlugin(PluginBase):
         self._disarm()
         self._remove_ui()
 
+    def get_plugin_name(self) -> str:
+        # Without this, ISAT's plugin list shows the raw class name.
+        return "ISAT line tool"
+
     def get_plugin_author(self) -> str:
         return "ISAT line tool"
 
@@ -683,6 +687,7 @@ class LineToolPlugin(PluginBase):
         self._clear_cursor_item()
         if self.mainwindow is not None:
             self._set_os_cursor(QtCore.Qt.CursorShape.ArrowCursor)
+
     def finish(self, scene_pos=None):
         """Commit the centerline into a polygon annotation."""
         if not self.drawing:

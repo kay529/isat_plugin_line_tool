@@ -8,3 +8,7 @@ dist/
 venv/
 .idea/
 .vscode/
+
+# Assistant/tool working memory kept alongside the checkout. Local notes only --
+# never part of the plugin, and not for publication.
+.workbuddy/

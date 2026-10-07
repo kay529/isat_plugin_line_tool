@@ -1,21 +1,18 @@
-# ISAT Line Tool Plugin
+# ISAT Annotation Tools
 
-A plugin for [**ISAT_with_segment_anything**](https://github.com/yatengLG/ISAT_with_segment_anything)
+Plugins for [**ISAT_with_segment_anything**](https://github.com/yatengLG/ISAT_with_segment_anything)
 (image segmentation annotation tool).
 
-**Drag a centerline, let go, get a fixed-width polygon.**
+This repository holds **two independent plugins**. They install separately,
+uninstall separately, and share no code — take only the one you want.
 
-Hold the left button and drag along the spine of the thing you are labelling —
-a fibre, a road, a tube, a membrane — then release. The plugin expands that
-centerline into a polygon of the width you chose and drops it in as a normal
-ISAT annotation (category, group, colour, list entry, dirty flag: all normal).
+| Plugin | What it does |
+| --- | --- |
+| **[Line tool](isat_plugin_line_tool/)** | Drag a centerline, release, get a fixed-width polygon |
+| **[Eraser](isat_plugin_eraser/)** | Press on an annotation, drag, release — the mistake is gone and the rest is untouched |
 
-Same idea as ImageJ's *Segmented Line* with a width, or Label Studio's brush:
-**one gesture, one annotation.** No "click to start, click again to stop"
-dance.
-
-Built for **high-resolution** imagery, where browser-based labellers struggle —
-see [Why](#why).
+Install both if you want to draw and to correct. A mis-drawn line is fixed by
+erasing the overshoot rather than deleting vertices one at a time.
 
 ---
 
@@ -42,18 +39,23 @@ particular product — it is simply the wrong container for very large rasters.
 
 ISAT is a **native desktop application** (PyQt5), not a web page, so it is not
 bound by a browser tab's memory or canvas limits, and the same high-resolution
-files stay workable. This plugin exists because that is the situation we were
+files stay workable. These plugins exist because that is the situation we were
 in: road and remote-sensing annotation at high resolution, where a
-browser-based labeller stalled — so we built the tool we needed for ISAT
+browser-based labeller stalled — so we built the tools we needed for ISAT
 instead of fighting the tool.
 
-### And why a *line* tool specifically
+### And why tools like these specifically
 
 Outlining long thin objects with a plain polygon tool is tedious: either you
 click a dozen times per segment trying to trace both edges, or you accept a
-ragged, too-thin sliver. With this tool you trace the object **once** — down the
-middle — and the width is handled for you. Change the width with a spinbox or
-two keys, and it stays where you left it.
+ragged, too-thin sliver. With the line tool you trace the object **once** —
+down the middle — and the width is handled for you.
+
+And when the result is wrong, ISAT's own answer is to delete the annotation and
+draw it again. That loses the effort you already spent and the re-drawn version
+is a slightly different shape, so now the data has drifted as well as being
+wrong. The eraser removes *only* the part that is wrong and leaves the rest of
+the boundary exactly as it was.
 
 That matters most for exactly the features that high-resolution imagery is
 needed to resolve: a road a few pixels across, a crack, a vessel, a fibre.
@@ -65,24 +67,35 @@ fibres / membranes / vessels, cracks, tubing, plumes, handwriting strokes.
 
 ## Install
 
-The plugin lives outside ISAT's repo, so it survives ISAT updates and uninstalls
-cleanly.
+Both plugins live outside ISAT's repo, so they survive ISAT updates and
+uninstall cleanly.
 
 ```bash
-# 1. Get the code
 git clone https://github.com/kay529/isat_plugin_line_tool.git
 cd isat_plugin_line_tool
 
-# 2. Install it into the SAME python environment ISAT runs in
+# The line tool
+pip install -e .
+
+# The eraser (optional, independent)
+cd isat_plugin_eraser
 pip install -e .
 ```
 
-That is the whole install. `-e` (editable) means later `git pull`s take effect
-immediately — no reinstall needed.
+`-e` (editable) means later `git pull`s take effect immediately — no reinstall
+needed. Each plugin's own README has the full details; the short version is:
+
+```bash
+# one plugin
+cd isat_plugin_eraser && pip install -e .
+
+# or both
+pip install -e . && pip install -e ./isat_plugin_eraser
+```
 
 ### Finding the right pip
 
-Install into the environment ISAT itself uses, or ISAT will not see the plugin.
+Install into the environment ISAT itself uses, or ISAT will not see the plugins.
 If you are unsure which python that is:
 
 ```bash
@@ -105,25 +118,31 @@ D:\path\to\ISAT\Anaconda\envs\isat_env\python.exe -m pip install -e .
 
 * Python >= 3.8
 * [`shapely`](https://pypi.org/project/shapely/) — installed automatically
+* [`numpy`](https://pypi.org/project/numpy/) — installed automatically
+* [`opencv-python`](https://pypi.org/project/opencv-python/) — installed
+  automatically; ISAT already ships OpenCV, so in practice this is already
+  satisfied
 * PyQt5 — already present, since ISAT depends on it
 
-Only `shapely` is added on top of what ISAT already ships.
+The line tool only needs `shapely`. The eraser also uses `numpy` and OpenCV
+for its mask work; both are imported lazily with pure-Python fallbacks, so a
+plugin still loads without them.
 
 ---
 
-## Enable it in ISAT
+## Enable them in ISAT
 
 1. Start ISAT.
 2. Open **Tools → Plugins**.
-3. Find **ISAT line tool** in the plugin list and tick it.
-4. A **Line** button and a width spinbox appear on the toolbar.
+3. Tick **ISAT line tool** and/or **ISAT eraser**.
+4. Their buttons and spinboxes appear on the toolbar.
 
-The plugin needs no configuration file — the last width you used is remembered
-in ISAT's own `software.yaml`.
+Neither plugin needs a configuration file — the last width, eraser size and
+settings are remembered in ISAT's own `software.yaml`.
 
 ---
 
-## How to use
+## Line tool at a glance
 
 | Action                      | Result                                              |
 | --------------------------- | --------------------------------------------------- |
@@ -134,106 +153,113 @@ in ISAT's own `software.yaml`.
 | `[` / `]`                   | Width −5 px / +5 px                                 |
 | `Z`                         | Undo: drop the last point of the line in progress   |
 | `Esc`                       | Discard the line in progress                        |
-| `Esc` (nothing in progress) | Leave the tool, restore ISAT's own shortcuts        |
 | `K`                         | Arm the tool from the keyboard                      |
 | Right click                 | Discard the line in progress                        |
 
-**Width** is the total thickness of the finished polygon, in pixels — not a
-radius. The circular cursor shows exactly what you will get.
+## Eraser at a glance
+
+| Action                      | Result                                                |
+| --------------------------- | ----------------------------------------------------- |
+| Press on an annotation      | The eraser locks onto it (no pre-selecting needed)    |
+| Drag while held             | The covered part is removed (red trail follows)       |
+| Release                     | The annotation becomes whatever survived               |
+| `[` / `]`                   | Eraser diameter −5 px / +5 px                          |
+| `Z`                         | Undo: rewind the last mouse-move                      |
+| `Esc`                       | Discard the erase in progress                         |
+| `E`                         | Arm the eraser from the keyboard                      |
+| Right click                 | Discard the erase in progress                         |
 
 **Nothing is written to disk until you release the button.** An unfinished line
-is a private overlay item and cannot end up in the saved json.
+or erase is a private overlay and cannot end up in the saved json.
 
-### Worked example
-
-1. Set the width to `12 px` with the spinbox (or press `]` a few times).
-2. Press and hold the left button at one end of the fibre.
-3. Drag along its middle. Hold `Shift` for the straight stretches.
-4. Release.
-5. A `12 px` wide polygon appears, selected and listed in the annotation dock —
-   same as if you had hand-drawn it.
+Full details, worked examples and behaviour notes are in each plugin's README.
 
 ---
 
-## Notes on behaviour
+## Performance
 
-* **One gesture, one annotation.** If you want three separate pieces, draw
-  three times. Each release commits independently.
-* **The tracer is not an annotation.** The blue line you drag is a temporary
-  overlay that is removed the instant the real polygon is created.
-* **`Z` undoes a point, not an annotation.** To remove a committed annotation,
-  use ISAT's own delete (select it, press `Delete`).
-* **Any drawing direction** works; the polygon is buffered from the centerline,
-  so direction does not matter.
-* A single click produces a small octagonal dot, so you can dot-annotate
-  without dragging.
-* **Flat caps.** The polygon ends where you stopped drawing, rather than
-  ballooning into a rounded blob.
+Both plugins are built for high-resolution imagery, and the rule they follow is
+simple: **never do work proportional to the image on a mouse-move path.**
+
+The line tool buffers a centerline with shapely, which costs O(vertices). The
+eraser keeps its working mask sized to the *bounding box of the annotation being
+edited* rather than the canvas, and draws its live preview as a stroked path
+rather than a full-size image overlay. A 200 × 40 px annotation allocates an
+8 KB mask whether the image is 1 MP or 300 MP.
+
+This is not theoretical. An earlier version of the eraser allocated a
+full-canvas RGBA preview on every mouse press; at 300 MP that is over a gigabyte
+and roughly half a second of blocked GUI thread *per click*, which is exactly
+the "click and nothing happens" behaviour this rewrite exists to fix. Measured
+on the current version, a press costs ~12 ms at 300 MP and a drag frame under
+3 ms.
 
 ---
 
 ## Uninstall
 
 ```bash
-pip uninstall isat-plugin-line-tool
+pip uninstall isat-plugin-line-tool     # line tool
+pip uninstall isat-plugin-eraser        # eraser
 ```
 
-Disable it in **Tools → Plugins** first if ISAT is running.
+Disable them in **Tools → Plugins** first if ISAT is running.
 
 ---
 
-## Implementation notes
+## Tests
 
-Three things about ISAT are worth knowing if you want to adapt this plugin.
+The `tests/` directory holds checks that drive a real ISAT `MainWindow`, so they
+need a local checkout of ISAT_with_segment_anything (ISAT is not on PyPI, so it
+cannot be a dependency). Point them at one with `$ISAT_ROOT`; a sibling checkout
+is found automatically.
 
-**1. Dragging must be handled in `on_mouse_move_event`.**
-ISAT only fires `on_mouse_pressed_and_mouse_move_event` while the scene's
-internal `pressed` flag is set, and that flag is raised exclusively in the
-CREATE / REPAINT annotation modes. This plugin deliberately leaves ISAT in its
-normal VIEW mode, so it hooks `on_mouse_move_event` instead — the callback ISAT
-does trigger on every move.
+```bash
+# Functional checks for the eraser (163 of them)
+ISAT_ROOT=/path/to/ISAT_with_segment_anything python tests/test_eraser.py
 
-**2. QAction shortcuts beat view event filters.**
-`QAction` shortcuts are window-level and are consumed by the main window before
-any widget event filter sees the key. ISAT binds `Z` to its own undo action, so
-while the tool is armed the plugin temporarily disables that action and restores
-it **to its exact previous state** afterwards (`_arm()` / `_disarm()`).
-ISAT's `software.yaml` is never modified.
+# Performance, from 2 to 300 megapixels
+ISAT_ROOT=/path/to/ISAT_with_segment_anything python tests/bench_eraser.py
+```
 
-**3. Press/release state must be tracked, not inferred.**
-`on_mouse_release_event` snapshots `was_left = self._left_pressed` *before*
-clearing it, so a stroke that was already thrown away by `Esc` or a right click
-is not mistakenly committed.
+Both exit non-zero on failure. See the
+[eraser README](isat_plugin_eraser/README.md#tests) for details.
 
-### Two gotchas about `init_plugin` and `enable_plugin`
+Continuous integration runs the cheaper checks (syntax, lint, and that each
+plugin still fails to import with a clean `ImportError` when ISAT is absent) on
+every push.
 
-These cost real debugging time, so they are documented here.
+---
 
-**`mainwindow.cfg` does not exist yet when `init_plugin()` runs.**
-ISAT constructs its plugin manager dialog from inside `init_ui()`, while the
-config object is only assigned later. So `init_plugin()` must never let a `cfg`
-lookup raise — an uncaught exception makes ISAT print
-`failed to load plugin` and silently drop the plugin from the list, with no
-visible error in the UI. Every `cfg` read in this plugin is wrapped in
-`try/except`, and the width simply falls back to its default.
+## Repository layout
 
-**`enable_plugin()` can be called more than once, and the manager reloads.**
-The plugin manager dialog is constructed more than once during start-up, and
-each construction re-runs plugin discovery, so more than one instance of the
-same class can end up in the manager's list. Reloading also calls
-`disable_plugin()` on every previous instance. Therefore:
+```
+isat_plugin_line_tool/                 # the line tool plugin
+├── setup.py                           # registers the `line_tool` entry point
+├── README.md
+├── LICENSE
+└── isat_plugin_line_tool/
+    ├── __init__.py
+    └── plugin.py
 
-* `_install_ui()` begins by calling `_remove_ui()`, making installation
-  idempotent.
-* `_remove_ui()` locates its own widgets **by `objectName`** instead of trusting
-  a cached toolbar pointer — otherwise each reload leaves an orphaned spinbox
-  behind.
+isat_plugin_eraser/                    # the eraser plugin (independent)
+├── setup.py                           # registers the `eraser` entry point
+├── README.md
+├── LICENSE
+└── isat_plugin_eraser/
+    ├── __init__.py
+    └── plugin.py
 
-Widget names used: `actionLineTool`, `spinBox_line_tool_width`,
-`label_line_tool_width`.
+tests/                                 # shared local test scripts
+├── _bootstrap.py                      # locates ISAT via $ISAT_ROOT
+├── test_eraser.py
+└── bench_eraser.py
 
-Nothing in ISAT's own source is patched — the plugin only uses the public
-`PluginBase` hooks. See [Compatibility](#compatibility).
+.github/workflows/ci.yml               # syntax + lint + import guard
+```
+
+Each plugin directory is a self-contained, independently installable Python
+package with its own README, licence and entry point.
 
 ---
 
@@ -241,32 +267,16 @@ Nothing in ISAT's own source is patched — the plugin only uses the public
 
 Tested against **ISAT 1.5.x** (Python 3.8, PyQt5).
 
-The plugin talks to ISAT only through the documented plugin interface:
+The plugins talk to ISAT only through the documented plugin interface:
 
 * the `isat.plugins` entry-point group,
 * the `PluginBase` methods and lifecycle hooks,
 * `MainWindow.polygons`, `MainWindow.scene`, `MainWindow.cfg`,
 * the annotation dock and category dock widgets.
 
-It does **not** monkey-patch or modify any ISAT file. If a future ISAT release
-renames a hook or moves a widget, the plugin will simply stop working and can be
+They do **not** monkey-patch or modify any ISAT file. If a future ISAT release
+renames a hook or moves a widget, a plugin will simply stop working and can be
 removed with `pip uninstall` — your ISAT installation is untouched.
-
----
-
-## Files
-
-```
-isat_plugin_line_tool/
-├── setup.py                        # registers the `line_tool` entry point
-├── README.md
-├── LICENSE
-└── isat_plugin_line_tool/
-    ├── __init__.py                 # exports Plugin
-    └── plugin.py                   # all the logic
-```
-
-`entry_points` group: `isat.plugins`, name: `line_tool`.
 
 ---
 
@@ -276,6 +286,8 @@ Issues and pull requests are welcome. If you hit a problem, please include:
 
 * your ISAT version,
 * your Python version and OS,
+* the image dimensions you were working at (performance problems are almost
+  always resolution-dependent),
 * anything printed on the console when ISAT starts (the plugin loader logs
   there).
 
@@ -283,18 +295,19 @@ Issues and pull requests are welcome. If you hit a problem, please include:
 
 ## License and attribution
 
-This plugin is released under the **MIT License** — see [LICENSE](LICENSE).
+Both plugins are released under the **MIT License** — see
+[LICENSE](LICENSE) and [isat_plugin_eraser/LICENSE](isat_plugin_eraser/LICENSE).
 
-It is an independent plugin for
+They are independent plugins for
 [ISAT_with_segment_anything](https://github.com/yatengLG/ISAT_with_segment_anything),
 which is developed by **yatengLG** and licensed under the
 **Apache License 2.0**.
 
 * No ISAT source file is copied, modified, or redistributed here.
-* The plugin merely imports ISAT's public plugin interface at runtime
+* The plugins merely import ISAT's public plugin interface at runtime
   (`PluginBase`, `Polygon`), which is the intended and documented way to extend
   the application.
-* ISAT is **not** bundled with this package; users install it separately.
+* ISAT is **not** bundled with these packages; users install it separately.
 * "ISAT" and the names of its authors are used here only to describe
-  compatibility. This plugin is **not** affiliated with, endorsed by, or
+  compatibility. These plugins are **not** affiliated with, endorsed by, or
   maintained by the ISAT project.
