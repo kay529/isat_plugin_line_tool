@@ -8,3 +8,6 @@ dist/
 venv/
 .idea/
 .vscode/
+
+# Agent / editor scratch data that must never be published
+.workbuddy/

@@ -193,6 +193,10 @@ class LineToolPlugin(PluginBase):
         self._disarm()
         self._remove_ui()
 
+    def get_plugin_name(self) -> str:
+        # Without this, ISAT's plugin list shows the raw class name.
+        return "ISAT line tool"
+
     def get_plugin_author(self) -> str:
         return "ISAT line tool"
 
